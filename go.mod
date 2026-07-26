@@ -1,3 +1,3 @@
-module "github.com/gounix/go-registry"
+module github.com/gounix/goregistry
 
 go 1.22.2
