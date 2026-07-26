@@ -23,7 +23,7 @@ SOFTWARE.
 */
 
 //package github.com/gounix/go-registry
-package go-registry
+package "go-registry"
 
 import (
 	"crypto/tls"
