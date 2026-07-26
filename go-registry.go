@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package "github.com/gounix/go-registry"
+package github.com/gounix/go-registry
 
 import (
 	"crypto/tls"
