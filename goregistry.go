@@ -34,8 +34,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	//"rebuilder/jsonreq"
-	//"rebuilder/secret"
+	"rebuilder/jsonreq"
+	"github.com/gounix/gosecret"
 )
 
 const (
@@ -293,7 +293,7 @@ func (token TokenT) GetLastUpdate(scheme string, tlsVerify bool, host string, re
 	return datum, nil
 }
 
-func AcquireToken(scheme string, tlsVerify bool, host string, repo string, regcred secret.RegCredT) (TokenT, error) {
+func AcquireToken(scheme string, tlsVerify bool, host string, repo string, regcred gosecret.RegCredT) (TokenT, error) {
 	var token TokenT
 
 	realm, service, err := checkAuth(scheme, tlsVerify, host, repo)
