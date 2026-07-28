@@ -26,8 +26,9 @@ package goregistry
 
 import (
         "fmt"
-	"regexp"
         "github.com/gounix/gojsonreq"
+	"log/slog"
+	"regexp"
 )
 const (
         versionUrlPattern  = "%s://%s/v2/%s/tags/list"
