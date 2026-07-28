@@ -214,9 +214,6 @@ func getDigestFromImageIndex(scheme string, tlsVerify bool, host string, token T
 		slog.Warn("goregistry.getDigestFromImageIndex", "MediaType", dat.MediaType)
 	}
 
-	b,_:=json.MarshalIndent(dat, "", "  ")
-	fmt.Print(string(b))
-
 	for _, entry := range dat.Manifest {
 		if entry.Platform.Architecture == "amd64" {
 			slog.Info("goregistry.getDigestFromImageIndex returning", "digest", entry.Digest, 
@@ -245,9 +242,6 @@ func getDigestFromManifest(scheme string, tlsVerify bool, host string, token Tok
 		slog.Warn("goregistry.getDigestFromManifest", "MediaType", dat.MediaType)
 	}
 
-	b,_:=json.MarshalIndent(dat, "", "  ")
-	fmt.Print(string(b))
-
 	slog.Info("goregistry.getDigestFromManifest returning", "digest", dat.Config.Digest, "mediaType", dat.Config.MediaType)
 	return dat.Config, nil
 }
@@ -263,9 +257,6 @@ func getBlob(scheme string, tlsVerify bool, host string, config ConfigT, token T
 		slog.Error("goregistry.getBlob", "err", err)
 		return time.Time{}, err
 	}
-
-	b,_:=json.MarshalIndent(dat, "", "  ")
-	fmt.Print(string(b))
 
 	slog.Info("goregistry.getBlob", "repo", repo, "tag", tag, "digest", config.Digest, "mediaType", config.MediaType, "created", dat.Created)
 
