@@ -29,13 +29,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gounix/gojsonreq"
+	"github.com/gounix/gosecret"
 	"io"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
-	"rebuilder/jsonreq"
-	"github.com/gounix/gosecret"
 )
 
 const (
@@ -203,7 +203,7 @@ func getDigestFromImageIndex(scheme string, tlsVerify bool, host string, token T
 
 	// application/vnd.docker.distribution.manifest.list.v2+json added for gcr.io
 	// application/vnd.oci.image.manifest.v1+json for dockerhub
-	if err := jsonreq.GetJsonResp(tlsVerify, url, string(token), "application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.index.v1+json", &dat); err != nil {
+	if err := gojsonreq.GetJsonResp(tlsVerify, url, string(token), "application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.index.v1+json", &dat); err != nil {
 		// not always present, so no error
 		slog.Info("goregistry.getDigestFromImageIndex", "err", err)
 		return "", err
@@ -235,7 +235,7 @@ func getDigestFromManifest(scheme string, tlsVerify bool, host string, token Tok
 	url := fmt.Sprintf(manifestUrlPattern, scheme, host, repo, digest)
 	slog.Info("goregistry.getDigestFromManifest", "url", url)
 
-	if err := jsonreq.GetJsonResp(tlsVerify, url, string(token), "application/vnd.docker.distribution.manifest.v2+json,application/vnd.oci.image.manifest.v1+json", &dat); err != nil {
+	if err := gojsonreq.GetJsonResp(tlsVerify, url, string(token), "application/vnd.docker.distribution.manifest.v2+json,application/vnd.oci.image.manifest.v1+json", &dat); err != nil {
 		slog.Error("goregistry.getDigestFromManifest", "err", err)
 		return ConfigT{}, err
 	}
@@ -258,8 +258,8 @@ func getBlob(scheme string, tlsVerify bool, host string, config ConfigT, token T
 	url := fmt.Sprintf(blobUrlPattern, scheme, host, repo, config.Digest)
 	slog.Info("goregistry.getBlob", "url", url)
 
-	//if err := jsonreq.GetJsonResp(tlsVerify, url, string(token), "application/vnd.oci.image.config.v1+json", &dat); err != nil {
-	if err := jsonreq.GetJsonResp(tlsVerify, url, string(token), config.MediaType, &dat); err != nil {
+	//if err := gojsonreq.GetJsonResp(tlsVerify, url, string(token), "application/vnd.oci.image.config.v1+json", &dat); err != nil {
+	if err := gojsonreq.GetJsonResp(tlsVerify, url, string(token), config.MediaType, &dat); err != nil {
 		slog.Error("goregistry.getBlob", "err", err)
 		return time.Time{}, err
 	}
