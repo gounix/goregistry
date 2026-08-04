@@ -38,52 +38,6 @@ import (
 	"time"
 )
 
-const (
-	checkAuthUrlPattern = "%s://%s/v2/"
-	getTokenUrlPattern  = "%s?service=%s&scope=repository:%s:pull"
-	manifestUrlPattern  = "%s://%s/v2/%s/manifests/%s"
-	blobUrlPattern      = "%s://%s/v2/%s/blobs/%s"
-)
-
-type (
-	TokenT string
-	TokenRespT struct {
-		Token       TokenT    `json:"token"`
-		AccessToken string    `json:"access_token"`
-		ExpiresIn   int64     `json:"expires_in"`
-		IssuedAt    time.Time `json:"issued_at"`
-	}
-	AnnotationsT struct {
-		Created time.Time `json:"org.opencontainers.image.created"`
-		Url     string    `json:"org.opencontainers.image.url"`
-		Version string    `json:"org.opencontainers.image.version"`
-	}
-	PlatformT struct {
-		Architecture string `json:"architecture"`
-		Os           string `json:"os"`
-	}
-	ManifestT struct {
-		Digest      string       `json:"digest"`
-		Platform    PlatformT    `json:"platform"`
-		Annotations AnnotationsT `json:"annotations"`
-	}
-	ManifestsT struct {
-		MediaType string      `json:"mediaType"`
-		Manifest  []ManifestT `json:"manifests"`
-	}
-	ConfigT struct {
-		MediaType string `json:"mediaType"`
-		Digest    string `json:"digest"`
-	}
-	SingleT struct {
-		MediaType string  `json:"mediaType"`
-		Config    ConfigT `json:"config"`
-	}
-	BlobT struct {
-		Created time.Time `json:"created"`
-	}
-)
-
 func getValueFromString(str string, substr string) string {
 
 	startPos := strings.Index(str, substr)
@@ -149,10 +103,10 @@ func checkAuth(scheme string, tlsVerify bool, host string, repo string) (string,
 }
 
 // https://docs.docker.com/reference/api/registry/auth/
-func getToken(realm string, tlsVerify bool, service string, repo string, user string, passwd string) TokenT {
+func getToken(realm string, tlsVerify bool, service string, repo string, user string, passwd string, usage string) TokenT {
 	var dat TokenRespT
 
-	url := fmt.Sprintf(getTokenUrlPattern, realm, service, repo)
+	url := fmt.Sprintf(getTokenUrlPattern, realm, service, repo, usage)
 	slog.Info("goregistry.getToken", "url", url)
 
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
@@ -195,54 +149,83 @@ func getToken(realm string, tlsVerify bool, service string, repo string, user st
 	return dat.Token
 }
 
-func getDigestFromImageIndex(scheme string, tlsVerify bool, host string, token TokenT, repo string, tag string) (string, error) {
-	var dat ManifestsT
+func getDigestFromManifest(scheme string, tlsVerify bool, host string, token TokenT, repo string, tag string) (string, error) {
+	var digest string
 
 	url := fmt.Sprintf(manifestUrlPattern, scheme, host, repo, tag)
-	slog.Info("goregistry.getDigestFromImageIndex", "url", url)
+	slog.Info("goregistry.getDigestFromManifest", "url", url)
 
-	// application/vnd.docker.distribution.manifest.list.v2+json added for gcr.io
-	// application/vnd.oci.image.manifest.v1+json for dockerhub
-	if err := gojsonreq.GetJsonResp(tlsVerify, url, string(token), "application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.index.v1+json", &dat); err != nil {
+	customTransport := http.DefaultTransport.(*http.Transport).Clone()
+        if ! tlsVerify {
+                customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+        }
+
+        client := &http.Client{Transport: customTransport}
+        req, err := http.NewRequest("GET", url, nil)
+	req.Header.Add("accept", acceptAll)
+
+        if token != "" {
+                req.Header.Add("Authorization", "Bearer " + string(token))
+        }
+
+        resp, err := client.Do(req)
+        if err != nil {
+                slog.Error("goregistry.getDigestFromManifest", "client.do error", err)
+                return "", err
+        }
+
+        defer resp.Body.Close()
+        if resp.StatusCode != 200 {
+                slog.Error("goregistry.getDigestFromManifest", "status", resp.Status)
+                str := fmt.Sprintf("status code %d", resp.StatusCode)
+                return "", errors.New(str)
+        }
+
+        if digest = resp.Header.Get("Docker-Content-Digest"); digest != "" {
+                slog.Info("goregistry.getDigestFromManifest", "Docker-Content-Digest", digest)
+        }
+        return digest, nil
+
+}
+func getConfigFromImageIndex(scheme string, tlsVerify bool, host string, token TokenT, repo string, tag string) (ConfigT, error) {
+	var dat ManifestsT
+	var config ConfigT
+
+	url := fmt.Sprintf(manifestUrlPattern, scheme, host, repo, tag)
+	slog.Info("goregistry.getConfigFromImageIndex", "url", url)
+
+	if err := gojsonreq.GetJsonResp(tlsVerify, url, string(token), acceptImageIndex, &dat); err != nil {
 		// not always present, so no error
-		slog.Info("goregistry.getDigestFromImageIndex", "err", err)
-		return "", err
-	}
-	// multi architecture manifest list
-	if dat.MediaType != "application/vnd.oci.image.index.v1+json" &&
-	   dat.MediaType != "application/vnd.docker.distribution.manifest.list.v2+json" {
-		slog.Warn("goregistry.getDigestFromImageIndex", "MediaType", dat.MediaType)
+		slog.Info("goregistry.getConfigFromImageIndex", "err", err)
+		return ConfigT{}, err
 	}
 
 	for _, entry := range dat.Manifest {
 		if entry.Platform.Architecture == "amd64" {
-			slog.Info("goregistry.getDigestFromImageIndex returning", "digest", entry.Digest, 
+			slog.Info("goregistry.getConfigFromImageIndex returning", "digest", entry.Digest, 
 			            "arch", entry.Platform.Architecture, "created", entry.Annotations.Created, 
 				    "url", entry.Annotations.Url, "version", entry.Annotations.Version)
-			return entry.Digest, nil
+				    config.Digest = entry.Digest
+				    config.MediaType = entry.MediaType
+			return config, nil
 		}
 	}
-	slog.Error("goregistry.getDigestFromImageIndex return architecture not found")
-	return "", errors.New("not found")
+	slog.Error("goregistry.getConfigFromImageIndex return architecture not found")
+	return ConfigT{}, errors.New("not found")
 }
 
-func getDigestFromManifest(scheme string, tlsVerify bool, host string, token TokenT, repo string, digest string) (ConfigT, error) {
+func getConfigFromManifest(scheme string, tlsVerify bool, host string, token TokenT, repo string, digest string) (ConfigT, error) {
 	var dat SingleT
 
 	url := fmt.Sprintf(manifestUrlPattern, scheme, host, repo, digest)
-	slog.Info("goregistry.getDigestFromManifest", "url", url)
+	slog.Info("goregistry.getConfigFromManifest", "url", url)
 
-	if err := gojsonreq.GetJsonResp(tlsVerify, url, string(token), "application/vnd.docker.distribution.manifest.v2+json,application/vnd.oci.image.manifest.v1+json", &dat); err != nil {
-		slog.Error("goregistry.getDigestFromManifest", "err", err)
+	if err := gojsonreq.GetJsonResp(tlsVerify, url, string(token), acceptImageManifest, &dat); err != nil {
+		slog.Error("goregistry.getConfigFromManifest", "err", err)
 		return ConfigT{}, err
 	}
-	// docker manifest
-	if dat.MediaType != "application/vnd.oci.image.manifest.v1+json" && 
-	   dat.MediaType != "application/vnd.docker.distribution.manifest.v2+json" {
-		slog.Warn("goregistry.getDigestFromManifest", "MediaType", dat.MediaType)
-	}
 
-	slog.Info("goregistry.getDigestFromManifest returning", "digest", dat.Config.Digest, "mediaType", dat.Config.MediaType)
+	slog.Info("goregistry.getConfigFromManifest returning", "digest", dat.Config.Digest, "mediaType", dat.Config.MediaType)
 	return dat.Config, nil
 }
 
@@ -264,13 +247,17 @@ func getBlob(scheme string, tlsVerify bool, host string, config ConfigT, token T
 }
 
 func (token TokenT) GetLastUpdate(scheme string, tlsVerify bool, host string, repo string, tag string) (time.Time, error) {
-	digest1, err := getDigestFromImageIndex(scheme, tlsVerify, host, token, repo, tag)
+	var digest string
+
+	config, err := getConfigFromImageIndex(scheme, tlsVerify, host, token, repo, tag)
 	if err != nil {
 		// there is no image index manifest, try a normal manifest
-		digest1 = tag
+		digest = tag
+	} else {
+		digest = config.Digest
 	}
 	// get manifest for specific arch
-	config, err := getDigestFromManifest(scheme, tlsVerify, host, token, repo, digest1)
+	config, err = getConfigFromManifest(scheme, tlsVerify, host, token, repo, digest)
 	if err != nil {
 		slog.Error("goregistry.GetLastUpdate", "err", err)
 		return time.Time{}, err
@@ -294,8 +281,9 @@ func AcquireToken(scheme string, tlsVerify bool, host string, repo string, regcr
 	}
 	// no authentication needed
 	if realm != "" && service != "" {
-		token = getToken(realm, tlsVerify, service, repo, regcred.User, regcred.Passwd)
+		token = getToken(realm, tlsVerify, service, repo, regcred.User, regcred.Passwd, "pull")
 	}
 	return token, nil
 }
+
 

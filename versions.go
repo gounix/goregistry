@@ -30,16 +30,6 @@ import (
 	"log/slog"
 	"regexp"
 )
-const (
-        versionUrlPattern  = "%s://%s/v2/%s/tags/list"
-)
-
-type (
-	TagsT struct {
-                Name string   `json:"name"`
-                Tags []string `json:"tags"`
-        }
-)
 
 func (token TokenT) GetVersions(scheme string, tlsVerify bool, host string, repo string, filter string) ([]string, error) {
         var dat TagsT
