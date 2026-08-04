@@ -31,7 +31,7 @@ import (
 	"regexp"
 )
 
-func (token TokenT) GetVersions(scheme string, tlsVerify bool, host string, repo string, filter string) ([]string, error) {
+func (token TokenT) GetVersions(scheme string, tlsVerify bool, host string, repo string, filter string, negateFilter bool) ([]string, error) {
         var dat TagsT
 	var filtered []string
 
@@ -45,7 +45,7 @@ func (token TokenT) GetVersions(scheme string, tlsVerify bool, host string, repo
 
 	for _, entry := range dat.Tags {
 		matched, err := regexp.Match(filter, []byte(entry))
-		if err == nil && matched {
+		if err == nil && ((matched && ! negateFilter) || (! matched && negateFilter)) {
 			filtered = append(filtered, entry)
 		}
 	}
