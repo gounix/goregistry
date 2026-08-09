@@ -29,15 +29,16 @@ import (
 )
 
 const (
-	checkAuthUrlPattern = "%s://%s/v2/"
-	getTokenUrlPattern  = "%s?service=%s&scope=repository:%s:%s"
-	manifestUrlPattern  = "%s://%s/v2/%s/manifests/%s"
-	blobUrlPattern      = "%s://%s/v2/%s/blobs/%s"
-	versionUrlPattern   = "%s://%s/v2/%s/tags/list"
-	deleteUrlPattern    = "%s://%s/v2/%s/manifests/%s"
-	acceptImageIndex    = "application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.index.v1+json"
-	acceptImageManifest = "application/vnd.docker.distribution.manifest.v2+json,application/vnd.oci.image.manifest.v1+json"
-	acceptAll           = "application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.v2+json,application/vnd.oci.image.manifest.v1+json"
+	checkAuthUrlPattern   = "%s://%s/v2/"
+	getTokenUrlPattern    = "%s?service=%s&scope=repository:%s:%s"
+	manifestUrlPattern    = "%s://%s/v2/%s/manifests/%s"
+	blobUrlPattern        = "%s://%s/v2/%s/blobs/%s"
+	versionBaseUrlPattern = "%s://%s"
+	versionLinkUrlPattern = "/v2/%s/tags/list"
+	deleteUrlPattern      = "%s://%s/v2/%s/manifests/%s"
+	acceptImageIndex      = "application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.index.v1+json"
+	acceptImageManifest   = "application/vnd.docker.distribution.manifest.v2+json,application/vnd.oci.image.manifest.v1+json"
+	acceptAll             = "application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.v2+json,application/vnd.oci.image.manifest.v1+json"
 )
 
 type (

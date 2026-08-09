@@ -25,32 +25,109 @@ SOFTWARE.
 package goregistry
 
 import (
+	"crypto/tls"
+	"encoding/json"
+	"errors"
         "fmt"
-        "github.com/gounix/gojsonreq"
+	"io"
 	"log/slog"
+	"net/http"
 	"regexp"
+	"strings"
 )
 
-func (token TokenT) GetVersions(scheme string, tlsVerify bool, host string, repo string, filter string, negateFilter bool) ([]string, error) {
-        var dat TagsT
-	var filtered []string
-
-        url := fmt.Sprintf(versionUrlPattern, scheme, host, repo)
-        slog.Info("goregistry.getVersions", "url", url)
-
-        if err := gojsonreq.GetJsonResp(tlsVerify, url, string(token), "", &dat); err != nil {
-                slog.Error("goregistry.getVersions", "err", err)
-                return []string{}, err
-        }
-
-	for _, entry := range dat.Tags {
-		matched, err := regexp.Match(filter, []byte(entry))
-		if err == nil && ((matched && ! negateFilter) || (! matched && negateFilter)) {
-			filtered = append(filtered, entry)
-		}
+func parseLinkHeader(linkHeader string) string {
+	// Link: </v2/prometheus/prometheus/tags/list?n=100&last=v2.20.0-rc.1>; rel="next"
+	left := strings.Index(linkHeader, "<")
+	if left < 0 {
+		slog.Error("goregistry.parseLinkHeader left anchor not found", "linkHeader", linkHeader)
+		return ""
 	}
 
-        slog.Info("goregistry.getVersions", "repo", repo, "versions", filtered)
-        return filtered, nil
+	right := strings.Index(linkHeader, ">")
+	if right < 0 {
+		slog.Error("goregistry.parseLinkHeader right anchor not found", "linkHeader", linkHeader)
+		return ""
+	}
+	return linkHeader[left+1:right]
 }
 
+func fetchPage(tlsVerify bool, url string, token string, accept string, dat any) (string, error) {
+
+        customTransport := http.DefaultTransport.(*http.Transport).Clone()
+        if ! tlsVerify {
+                customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+        }
+
+        client := &http.Client{Transport: customTransport}
+        req, err := http.NewRequest("GET", url, nil)
+        if accept != "" {
+                req.Header.Add("accept", accept)
+        }
+
+        if token != "" {
+                req.Header.Add("Authorization", "Bearer "+token)
+        }
+
+	slog.Info("goregistry.fetchPage", "url", url)
+        resp, err := client.Do(req)
+        if err != nil {
+                slog.Error("goregistry.fetchPage", "client.do error", err)
+                return "", err
+        }
+
+        defer resp.Body.Close()
+        if resp.StatusCode != 200 {
+                slog.Error("goregistry.fetchPage", "status", resp.Status)
+                str := fmt.Sprintf("status code %d", resp.StatusCode)
+                return "", errors.New(str)
+        }
+
+	linkHeader := resp.Header.Get("Link")
+	link := ""
+	if linkHeader != "" {
+		link = parseLinkHeader(linkHeader)
+	}
+
+        slog.Info("goregistry.fetchPage", "ContentLength", resp.ContentLength)
+        body, err := io.ReadAll(resp.Body)
+        if err != nil {
+                slog.Error("goregistry.fetchPage", "io.ReadAll error", err)
+                return "", err
+        }
+
+        return link, json.Unmarshal(body, dat)
+}
+
+func (token TokenT) GetVersions(scheme string, tlsVerify bool, host string, repo string, filter string, negateFilter bool) ([]string, error) {
+	var filtered []string
+	var err error
+
+        baseUrl := fmt.Sprintf(versionBaseUrlPattern, scheme, host)
+        linkUrl := fmt.Sprintf(versionLinkUrlPattern, repo)
+        slog.Info("goregistry.getVersions", "baseUrl", baseUrl, "linkUrl", linkUrl)
+
+	for {
+		var dat TagsT
+
+		url := baseUrl + linkUrl
+		linkUrl, err = fetchPage(tlsVerify, url, string(token), "", &dat)
+		if err != nil {
+			slog.Error("goregistry.getVersions", "err", err)
+			break
+		}
+		slog.Info("goregistry.getVersions", "baseUrl", baseUrl, "linkUrl", linkUrl)
+
+		for _, entry := range dat.Tags {
+			matched, err := regexp.Match(filter, []byte(entry))
+			if err == nil && ((matched && ! negateFilter) || (! matched && negateFilter)) {
+				filtered = append(filtered, entry)
+			}
+		}
+		if linkUrl == "" {
+			slog.Info("goregistry.getVersions last page")
+			break
+		}
+	}
+	return filtered, nil
+}
