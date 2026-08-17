@@ -55,9 +55,7 @@ func parseLinkHeader(linkHeader string) string {
 func fetchPage(tlsVerify bool, url string, token string, accept string, dat any) (string, error) {
 
         customTransport := http.DefaultTransport.(*http.Transport).Clone()
-        if ! tlsVerify {
-                customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-        }
+	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: ! tlsVerify}
 
         client := &http.Client{Transport: customTransport}
         req, err := http.NewRequest("GET", url, nil)
@@ -99,19 +97,19 @@ func fetchPage(tlsVerify bool, url string, token string, accept string, dat any)
         return link, json.Unmarshal(body, dat)
 }
 
-func (token TokenT) GetVersions(scheme string, tlsVerify bool, host string, repo string, filter string, negateFilter bool) ([]string, error) {
+func (registry RegistryT) GetVersions(filter string, negateFilter bool) ([]string, error) {
 	var filtered []string
 	var err error
 
-        baseUrl := fmt.Sprintf(versionBaseUrlPattern, scheme, host)
-        linkUrl := fmt.Sprintf(versionLinkUrlPattern, repo)
+        baseUrl := fmt.Sprintf(versionBaseUrlPattern, registry.Scheme, registry.Host)
+        linkUrl := fmt.Sprintf(versionLinkUrlPattern, registry.Image)
         slog.Info("goregistry.getVersions", "baseUrl", baseUrl, "linkUrl", linkUrl)
 
 	for {
 		var dat TagsT
 
 		url := baseUrl + linkUrl
-		linkUrl, err = fetchPage(tlsVerify, url, string(token), "", &dat)
+		linkUrl, err = fetchPage(registry.TlsVerify, url, string(registry.Token), "", &dat)
 		if err != nil {
 			slog.Error("goregistry.getVersions", "err", err)
 			break

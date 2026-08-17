@@ -28,25 +28,22 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/gounix/gosecret"
 	"log/slog"
 	"net/http"
 )
 
-func (token TokenT) deleteByDigest(scheme string, tlsVerify bool, host string, repo string, digest string) error {
+func (registry RegistryT) deleteByDigest(digest string) error {
 
-	url := fmt.Sprintf(deleteUrlPattern, scheme, host, repo, digest)
+	url := fmt.Sprintf(deleteUrlPattern, registry.Scheme, registry.Host, registry.Image, digest)
 	slog.Info("goregistry.deleteByDigest", "url", url)
 
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
-        if ! tlsVerify {
-                customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-        }
+	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: ! registry.TlsVerify}
 
         client := &http.Client{Transport: customTransport}
         req, err := http.NewRequest("DELETE", url, nil)
 
-	req.Header.Add("Authorization", "Bearer "+string(token))
+	req.Header.Add("Authorization", "Bearer "+string(registry.Token))
 
 	resp, err := client.Do(req)
         if err != nil {
@@ -65,26 +62,21 @@ func (token TokenT) deleteByDigest(scheme string, tlsVerify bool, host string, r
 	return nil
 }
 
-func (token TokenT) DeleteImage(scheme string, tlsVerify bool, host string, repo string, tag string) error {
+func (registry RegistryT) DeleteImage(tag string) error {
+	var digest string
 
-	digest, err := getDigestFromManifest(scheme, tlsVerify, host, token, repo, tag)
-	if err != nil {
-		slog.Error("goregistry.DeleteImage", "err", err)
-		return err
+        retML, err := registry.GetManifestList(tag)
+        if err != nil {
+                // there is no image index manifest, try a normal manifest
+		retM, err := registry.GetManifest(acceptImageManifest, tag)
+		if err != nil {
+			slog.Error("goregistry.DeleteImage", "err", err)
+			return err
+		}
+		digest = retM.Digest
+	} else {
+		digest = retML.Digest
 	}
-	return token.deleteByDigest(scheme, tlsVerify, host, repo, digest)
+	return registry.deleteByDigest(digest)
 }
 
-func AcquireDeleteToken(scheme string, tlsVerify bool, host string, repo string, regcred gosecret.RegCredT) (TokenT, error) {
-	var token TokenT
-
-	realm, service, err := checkAuth(scheme, tlsVerify, host, repo)
-	if err != nil {
-		slog.Error("goregistry.AcquireToken", "checkAuth", err)
-		return TokenT(""), err
-	}
-	if realm != "" && service != "" {
-		token = getToken(realm, tlsVerify, service, repo, regcred.User, regcred.Passwd, "pull,push,delete")
-	}
-	return token, nil
-}

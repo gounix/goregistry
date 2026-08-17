@@ -25,6 +25,7 @@ SOFTWARE.
 package goregistry
 
 import (
+	"github.com/gounix/gosecret"
 	"time"
 )
 
@@ -50,31 +51,48 @@ type (
 		IssuedAt    time.Time `json:"issued_at"`
 	}
 	AnnotationsT struct {
-		Created time.Time `json:"org.opencontainers.image.created"`
-		Url     string    `json:"org.opencontainers.image.url"`
-		Version string    `json:"org.opencontainers.image.version"`
+		Created         time.Time `json:"org.opencontainers.image.created,omitzero"`
+		Url             string    `json:"org.opencontainers.image.url,omitempty"`
+		Version         string    `json:"org.opencontainers.image.version,omitempty"`
+		Revision        string    `json:"org.opencontainers.image.revision,omitempty"`
+		Source          string    `json:"org.opencontainers.image.source,omitempty"`
+		Base            string    `json:"org.opencontainers.image.base.name,omitempty"`
+		Arch            string    `json:"com.docker.official-images.bashbrew.arch,omitempty"`
+		ReferenceDigest string    `json:"vnd.docker.reference.digest,omitempty"`
+		ReferenceType   string    `json:"vnd.docker.reference.type,omitempty"`
 	}
 	PlatformT struct {
 		Architecture string `json:"architecture"`
 		Os           string `json:"os"`
 	}
-	ManifestT struct {
+	ArchManifestT struct {
 		MediaType   string       `json:"mediaType"`
 		Digest      string       `json:"digest"`
 		Platform    PlatformT    `json:"platform"`
 		Annotations AnnotationsT `json:"annotations"`
+		Size        int64        `json:"size"`
 	}
-	ManifestsT struct {
-		MediaType string      `json:"mediaType"`
-		Manifest  []ManifestT `json:"manifests"`
+	JsonManifestListT struct {
+		SchemaVersion int             `json:"schemaVersion"`
+		MediaType     string          `json:"mediaType"`
+		Manifest      []ArchManifestT `json:"manifests"`
 	}
 	ConfigT struct {
 		MediaType string `json:"mediaType"`
 		Digest    string `json:"digest"`
+		Size      int64  `json:"size"`
 	}
-	SingleT struct {
-		MediaType string  `json:"mediaType"`
-		Config    ConfigT `json:"config"`
+	LayerT struct {
+		MediaType string `json:"mediaType"`
+		Digest    string `json:"digest"`
+		Size      int64  `json:"size"`
+	}
+	JsonManifestT struct {
+		SchemaVersion int          `json:"schemaVersion"`
+		MediaType     string       `json:"mediaType"`
+		Config        ConfigT      `json:"config"`
+		Layers        []LayerT     `json:"layers"`
+		Annotations   AnnotationsT `json:"annotations"`
 	}
 	BlobT struct {
 		Created time.Time `json:"created"`
@@ -83,5 +101,23 @@ type (
                 Name string   `json:"name"`
                 Tags []string `json:"tags"`
         }
+	RegistryT struct {
+                Token TokenT
+                Scheme string
+                TlsVerify bool
+                Host string
+                Image string
+		Regcred gosecret.RegCredT
+        }
+	ManifestT struct {
+		Digest string
+		Raw    []byte 
+		Json   JsonManifestT
+	}
+	ManifestListT struct {
+		Digest string
+		Raw    []byte 
+		Json   JsonManifestListT
+	}
 )
 
