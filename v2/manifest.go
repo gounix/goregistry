@@ -46,6 +46,7 @@ func (registry *RegistryT) getManifest(tag string, accept string) (string, []byt
         client := &http.Client{Transport: customTransport}
         req, err := http.NewRequest("GET", url, nil)
 	req.Header.Add("accept", accept)
+	slog.Info("goregistry.getManifest", "accept", accept)
 
         if registry.Token != "" {
                 req.Header.Add("Authorization", "Bearer " + string(registry.Token))
@@ -69,15 +70,17 @@ func (registry *RegistryT) getManifest(tag string, accept string) (string, []byt
                 slog.Error("goregistry.getManifest", "io.ReadAll error", err)
                 return "", []byte{}, err
         }
-	digest := resp.Header.Get("docker-content-digest")
+	digest := resp.Header.Get("Docker-Content-Digest")
 
-	return digest, body, err
+	slog.Info("goregistry.getManifest", "digest", digest)
+	return digest, body, nil
 }
 
 func (registry *RegistryT) GetManifestList(tag string) (ManifestListT, error) {
 	var dat JsonManifestListT
 	var ret ManifestListT
 
+	slog.Info("goregistry.GetManifestList", "tag", tag)
 	digest, body, err := registry.getManifest(tag, acceptImageIndex)
 	if err != nil {
                 slog.Error("goregistry.GetManifestList", "err", err)
@@ -88,6 +91,14 @@ func (registry *RegistryT) GetManifestList(tag string) (ManifestListT, error) {
 	ret.Digest = digest
 	ret.Raw = body
 	ret.Json = dat
+
+	// some registries ignore the accept header and return whatever they have at that location
+	if ret.Json.MediaType != acceptDockerImageIndex && ret.Json.MediaType != acceptOCIImageIndex {
+		slog.Error("goregistry.GetManifestList illegal mediaType for manifestlist", "mediatype", ret.Json.MediaType)
+		return ManifestListT{}, errors.New("registry ignores accept header")
+	}
+
+	slog.Info("goregistry.GetManifestList", "digest", digest)
 	return ret, err
 }
 
@@ -95,6 +106,7 @@ func (registry *RegistryT) GetManifest(accept string, tag string) (ManifestT, er
 	var dat JsonManifestT
 	var ret ManifestT
 
+	slog.Info("goregistry.GetManifest", "accept", accept, "tag", tag)
 	digest, body, err := registry.getManifest(tag, accept)
 	if err != nil {
                 slog.Error("goregistry.GetManifest", "err", err)
@@ -105,6 +117,7 @@ func (registry *RegistryT) GetManifest(accept string, tag string) (ManifestT, er
 	ret.Digest = digest
 	ret.Raw = body
 	ret.Json = dat
+	slog.Info("goregistry.GetManifest", "digest", digest)
 	return ret, err
 }
 
