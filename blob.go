@@ -36,18 +36,16 @@ import (
 )
 
 
-//func (token TokenT) ReadBinaryBlob(scheme string, tlsVerify bool, host string, config ConfigT, repo string, ch chan []byte) error {
-//	url := fmt.Sprintf(blobUrlPattern, scheme, host, repo, config.Digest)
-//        slog.Info("goregistry.readBinaryBlob", "url", url)
+//func (registry RegistryT) StreamBlob(mediaType string, digest string, ch chan []byte) error {
+//	url := fmt.Sprintf(blobUrlPattern, registry.Scheme, registry.Host, registry.Image, digest)
+//        slog.Info("goregistry.StreamBlob", "url", url)
 //
 //        customTransport := http.DefaultTransport.(*http.Transport).Clone()
 //	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: ! tlsVerify}
 //
 //        client := &http.Client{Transport: customTransport}
 //        req, err := http.NewRequest("GET", url, nil)
-//        if config.MediaType != "" {
-//                req.Header.Add("accept", config.MediaType)
-//        }
+//	req.Header.Add("accept", mediaType)
 //	req.Header.Add("docker-distribution-api-version", "registry/2.0")
 //
 //        if token != "" {
@@ -56,19 +54,20 @@ import (
 //
 //	resp, err := client.Do(req)
 //        if err != nil {
-//                slog.Error("goregistry.readBinaryBlob", "client.do error", err)
+//                slog.Error("goregistry.StreamBlob", "client.do error", err)
 //                return err
 //        }
 //
 //        defer resp.Body.Close()
 //        if resp.StatusCode != 200 {
-//                slog.Error("goregistry.readBinaryBlob", "status", resp.Status)
+//                slog.Error("goregistry.StreamBlob", "status", resp.Status)
 //                str := fmt.Sprintf("status code %d", resp.StatusCode)
 //                return errors.New(str)
 //        }
+//	// io.ReadFull gebruiken in loop
 //        body, err := io.ReadAll(resp.Body)
 //        if err != nil {
-//                slog.Error("goregistry.readBinaryBlob", "io.ReadAll error", err)
+//                slog.Error("goregistry.StreamBlob", "io.ReadAll error", err)
 //                return err
 //        }
 //	ch <- body

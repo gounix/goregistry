@@ -26,20 +26,21 @@ package goregistry
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"time"
 )
 
-func getArchDigest(manifest JsonManifestListT) (string, string) {
+func getArchDigest(manifest JsonManifestListT) (string, string, error) {
 	for _, entry := range manifest.Manifest {
 		slog.Info("goregistry.getArchDigest", "arch", entry.Platform.Architecture, "os", entry.Platform.Os)
 		if entry.Platform.Architecture == "amd64" && entry.Platform.Os == "linux" {
-			return entry.MediaType, entry.Digest
+			return entry.MediaType, entry.Digest, nil
 		}
 	}
 
 	slog.Error("goregistry.getArchDigest not found")
-	return "", ""
+	return "", "", errors.New("amd64 architecture not found")
 }
 
 func (registry RegistryT) GetLastUpdate(tag string) (time.Time, error) {
@@ -54,7 +55,11 @@ func (registry RegistryT) GetLastUpdate(tag string) (time.Time, error) {
 		digest = tag
 		mediaType = acceptImageManifest
 	} else {
-		mediaType, digest = getArchDigest(retML.Json)
+		mediaType, digest, err = getArchDigest(retML.Json)
+		if err != nil {
+			slog.Error("goregistry.GetLastUpdate", "err", err)
+			return time.Time{}, err
+		}
 	}
 
 	slog.Info("goregistry.GetLastUpdate", "mediaType", mediaType, "digest", digest)
