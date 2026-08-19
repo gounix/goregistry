@@ -77,8 +77,8 @@ func fetchPage(tlsVerify bool, url string, token string, accept string, dat any)
         defer resp.Body.Close()
         if resp.StatusCode != 200 {
                 slog.Error("goregistry.fetchPage", "status", resp.Status)
-                str := fmt.Sprintf("status code %d", resp.StatusCode)
-                return "", errors.New(str)
+                //str := fmt.Sprintf("status code %d", resp.StatusCode)
+                return "", errors.New(resp.Status)
         }
 
 	linkHeader := resp.Header.Get("Link")

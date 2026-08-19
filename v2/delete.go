@@ -54,8 +54,8 @@ func (registry RegistryT) deleteByDigest(digest string) error {
 	defer resp.Body.Close()
         if resp.StatusCode != 202 {
                 slog.Error("goregistry.deleteByDigest", "status", resp.Status)
-                str := fmt.Sprintf("status code %d", resp.StatusCode)
-                return errors.New(str)
+                //str := fmt.Sprintf("status code %d", resp.StatusCode)
+                return errors.New(resp.Status)
         }
 
 	slog.Info("goregistry.deleteByDigest", "status", resp.Status)

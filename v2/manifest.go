@@ -61,8 +61,8 @@ func (registry *RegistryT) getManifest(tag string, accept string) (string, []byt
         defer resp.Body.Close()
         if resp.StatusCode != 200 {
                 slog.Error("goregistry.getManifest", "status", resp.Status)
-                str := fmt.Sprintf("status code %d", resp.StatusCode)
-                return "", []byte{}, errors.New(str)
+                //str := fmt.Sprintf("status code %d", resp.StatusCode)
+                return "", []byte{}, errors.New(resp.Status)
         }
 
         body, err := io.ReadAll(resp.Body)
@@ -149,8 +149,8 @@ func (registry *RegistryT) PutManifest(contentType string, content []byte, tag s
         defer resp.Body.Close()
         if resp.StatusCode != 201 {
                 slog.Error("goregistry.PutManifest", "status", resp.Status)
-                str := fmt.Sprintf("status code %d", resp.StatusCode)
-                return errors.New(str)
+                //str := fmt.Sprintf("status code %d", resp.StatusCode)
+                return errors.New(resp.Status)
         }
 
 	slog.Info("goregistry.PutManifest OK")

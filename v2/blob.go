@@ -61,8 +61,8 @@ func (registry RegistryT) StreamBlob(mediaType string, digest string, ch chan []
         defer resp.Body.Close()
         if resp.StatusCode != 200 {
                 slog.Error("goregistry.StreamBlob", "status", resp.Status)
-                str := fmt.Sprintf("status code %d", resp.StatusCode)
-                return errors.New(str)
+                //str := fmt.Sprintf("status code %d", resp.StatusCode)
+                return errors.New(resp.Status)
         }
 	// io.ReadFull gebruiken in loop
         body, err := io.ReadAll(resp.Body)
@@ -102,8 +102,8 @@ func (registry RegistryT) GetBlob(mediaType string, digest string) ([]byte, erro
         defer resp.Body.Close()
         if resp.StatusCode != 200 {
                 slog.Error("goregistry.GetBlob", "status", resp.Status)
-                str := fmt.Sprintf("status code %d", resp.StatusCode)
-                return []byte{}, errors.New(str)
+                //str := fmt.Sprintf("status code %d", resp.StatusCode)
+                return []byte{}, errors.New(resp.Status)
         }
         body, err := io.ReadAll(resp.Body)
         if err != nil {
@@ -172,8 +172,8 @@ func (registry RegistryT) PostBlob(mediaType string, digest string) (string, err
         defer resp.Body.Close()
         if resp.StatusCode != 202 { // accepted
                 slog.Error("goregistry.PostBlob", "status", resp.Status)
-                str := fmt.Sprintf("status code %d", resp.StatusCode)
-                return "", errors.New(str)
+                //str := fmt.Sprintf("status code %d", resp.StatusCode)
+                return "", errors.New(resp.Status)
         }
 
         slog.Info("goregistry.PostBlob success")
@@ -215,8 +215,8 @@ func (registry RegistryT) PatchBlob(location string, mediaType string, digest st
         defer resp.Body.Close()
         if resp.StatusCode != 202 { // chunk accepted and stored
                 slog.Error("goregistry.PatchBlob", "status", resp.Status)
-                str := fmt.Sprintf("status code %d", resp.StatusCode)
-                return "", errors.New(str)
+                //str := fmt.Sprintf("status code %d", resp.StatusCode)
+                return "", errors.New(resp.Status)
         }
 
         slog.Info("goregistry.PatchBlob success")
@@ -251,8 +251,8 @@ func (registry RegistryT) DelBlob(location string, mediaType string, digest stri
         defer resp.Body.Close()
         if resp.StatusCode != 204 { // upload succesfully cancelled
                 slog.Error("goregistry.DelBlob", "status", resp.Status)
-                str := fmt.Sprintf("status code %d", resp.StatusCode)
-                return errors.New(str)
+                //str := fmt.Sprintf("status code %d", resp.StatusCode)
+                return errors.New(resp.Status)
         }
 
         slog.Info("goregistry.DelBlob success")
@@ -305,8 +305,8 @@ func (registry RegistryT) PutBlob(location string, mediaType string, digest stri
         defer resp.Body.Close()
         if resp.StatusCode != 201 {
                 slog.Error("goregistry.PutBlob", "status", resp.Status)
-                str := fmt.Sprintf("status code %d", resp.StatusCode)
-                return errors.New(str)
+                //str := fmt.Sprintf("status code %d", resp.StatusCode)
+                return errors.New(resp.Status)
         }
 
         slog.Info("goregistry.PutBlob success")
