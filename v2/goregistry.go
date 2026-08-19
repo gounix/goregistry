@@ -31,16 +31,17 @@ import (
 	"time"
 )
 
+// assuming that all architectures were built at the same time, so pick the first architecture that is not "unknown"
 func getArchDigest(manifest JsonManifestListT) (string, string, error) {
 	for _, entry := range manifest.Manifest {
-		slog.Info("goregistry.getArchDigest", "arch", entry.Platform.Architecture, "os", entry.Platform.Os)
-		if entry.Platform.Architecture == "amd64" && entry.Platform.Os == "linux" {
+		if entry.Platform.Architecture != "unknown" && entry.Platform.Os != "unknown" {
+			slog.Info("goregistry.getArchDigest", "arch", entry.Platform.Architecture, "os", entry.Platform.Os)
 			return entry.MediaType, entry.Digest, nil
 		}
 	}
 
 	slog.Error("goregistry.getArchDigest not found")
-	return "", "", errors.New("amd64 architecture not found")
+	return "", "", errors.New("architecture not found")
 }
 
 func (registry RegistryT) GetLastUpdate(tag string) (time.Time, error) {
