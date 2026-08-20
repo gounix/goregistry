@@ -35,10 +35,61 @@ import (
 	"strings"
 )
 
+func readChannel(ch chan byte, buf []byte, chunkSize int) (int, bool) {
 
-func (registry RegistryT) StreamBlob(mediaType string, digest string, ch chan []byte) error {
+	for count := 0; count < chunkSize; count++ {
+		byteBuf, more := <- ch
+		if ! more {
+			slog.Info("goregistry.readChannel partial chunk", "bytes", count)
+			return count, false
+		}
+		buf[count] = byteBuf
+	}
+
+	slog.Info("goregistry.readChannel full chunk", "bytes", chunkSize)
+	return chunkSize, true
+}
+
+func writeChannel(ch chan byte, buf []byte, count int) {
+	for cnt := 0; cnt < count; cnt++ {
+		ch <- buf[cnt]
+	}
+}
+
+// gitea 1.27.0 does not support chunking with a http Patch and gives: "Stream uploads after first write are not allowed"
+func (registry RegistryT) StreamWriteBlob(location string, mediaType string, digest string, ch chan byte, chunkSize int) (string, error) {
+	var buf []byte
+	var err error
+	//var more bool
+	var newLoc string
+
+	totalSize := 0
+	buf = make([]byte, chunkSize)
+	newLoc = location
+	for {
+		count, more := readChannel(ch, buf, chunkSize)
+		totalSize = totalSize + count
+
+		slog.Info("goregistry.StreamWriteBlob", "location", newLoc)
+		newLoc, err = registry.PatchBlob(newLoc, mediaType, digest, buf[:count])
+		if err != nil {
+			slog.Error("main.StreamWriteBlob PatchBlob", "err", err)
+			return "", err
+		}
+		if ! more {
+			slog.Info("goregistry.StreamWriteBlob finished")
+			break
+		}
+	}
+
+	slog.Info("goregistry.StreamWriteBlob returning", "location", newLoc, "bytes written", totalSize)
+	return newLoc, nil
+}
+
+func (registry RegistryT) StreamReadBlob(mediaType string, digest string, ch chan byte, chunkSize int) error {
+
 	url := fmt.Sprintf(blobUrlPattern, registry.Scheme, registry.Host, registry.Image, digest)
-        slog.Info("goregistry.StreamBlob", "url", url)
+        slog.Info("goregistry.StreamReadBlob", "url", url)
 
         customTransport := http.DefaultTransport.(*http.Transport).Clone()
 	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: ! registry.TlsVerify}
@@ -54,23 +105,26 @@ func (registry RegistryT) StreamBlob(mediaType string, digest string, ch chan []
 
 	resp, err := client.Do(req)
         if err != nil {
-                slog.Error("goregistry.StreamBlob", "client.do error", err)
+                slog.Error("goregistry.StreamReadBlob", "client.do error", err)
                 return err
         }
 
         defer resp.Body.Close()
         if resp.StatusCode != 200 {
-                slog.Error("goregistry.StreamBlob", "status", resp.Status)
-                //str := fmt.Sprintf("status code %d", resp.StatusCode)
+                slog.Error("goregistry.StreamReadBlob", "status", resp.Status)
                 return errors.New(resp.Status)
         }
-	// io.ReadFull gebruiken in loop
-        body, err := io.ReadAll(resp.Body)
-        if err != nil {
-                slog.Error("goregistry.StreamBlob", "io.ReadAll error", err)
-                return err
-        }
-	ch <- body
+
+	buf := make([]byte, chunkSize)
+	for {
+		n, _ := io.ReadFull(resp.Body, buf)
+		slog.Info("goregistry.StreamReadBlob", "bytes", n)
+		writeChannel(ch, buf, n)
+		//ch <- buf
+		if n < chunkSize {
+			break
+		}
+	}
 	close(ch)
 
         return nil
@@ -102,7 +156,6 @@ func (registry RegistryT) GetBlob(mediaType string, digest string) ([]byte, erro
         defer resp.Body.Close()
         if resp.StatusCode != 200 {
                 slog.Error("goregistry.GetBlob", "status", resp.Status)
-                //str := fmt.Sprintf("status code %d", resp.StatusCode)
                 return []byte{}, errors.New(resp.Status)
         }
         body, err := io.ReadAll(resp.Body)
@@ -172,7 +225,6 @@ func (registry RegistryT) PostBlob(mediaType string, digest string) (string, err
         defer resp.Body.Close()
         if resp.StatusCode != 202 { // accepted
                 slog.Error("goregistry.PostBlob", "status", resp.Status)
-                //str := fmt.Sprintf("status code %d", resp.StatusCode)
                 return "", errors.New(resp.Status)
         }
 
@@ -209,15 +261,14 @@ func (registry RegistryT) PatchBlob(location string, mediaType string, digest st
 		return "", err
         }
 
-	locationNew := resp.Header.Get("Location")
-	slog.Info("goregistry.PatchBlob", "location", locationNew)
-
         defer resp.Body.Close()
         if resp.StatusCode != 202 { // chunk accepted and stored
                 slog.Error("goregistry.PatchBlob", "status", resp.Status)
-                //str := fmt.Sprintf("status code %d", resp.StatusCode)
                 return "", errors.New(resp.Status)
         }
+
+	locationNew := resp.Header.Get("Location")
+	slog.Info("goregistry.PatchBlob", "location", locationNew)
 
         slog.Info("goregistry.PatchBlob success")
         return locationNew, nil
@@ -251,7 +302,6 @@ func (registry RegistryT) DelBlob(location string, mediaType string, digest stri
         defer resp.Body.Close()
         if resp.StatusCode != 204 { // upload succesfully cancelled
                 slog.Error("goregistry.DelBlob", "status", resp.Status)
-                //str := fmt.Sprintf("status code %d", resp.StatusCode)
                 return errors.New(resp.Status)
         }
 
@@ -305,7 +355,6 @@ func (registry RegistryT) PutBlob(location string, mediaType string, digest stri
         defer resp.Body.Close()
         if resp.StatusCode != 201 {
                 slog.Error("goregistry.PutBlob", "status", resp.Status)
-                //str := fmt.Sprintf("status code %d", resp.StatusCode)
                 return errors.New(resp.Status)
         }
 
