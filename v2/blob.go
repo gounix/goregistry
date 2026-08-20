@@ -106,12 +106,16 @@ func (registry RegistryT) StreamReadBlob(mediaType string, digest string, ch cha
 	resp, err := client.Do(req)
         if err != nil {
                 slog.Error("goregistry.StreamReadBlob", "client.do error", err)
+		// signal stream reader we are finished
+		close(ch)
                 return err
         }
 
         defer resp.Body.Close()
         if resp.StatusCode != 200 {
                 slog.Error("goregistry.StreamReadBlob", "status", resp.Status)
+		// signal stream reader we are finished
+		close(ch)
                 return errors.New(resp.Status)
         }
 
@@ -120,7 +124,6 @@ func (registry RegistryT) StreamReadBlob(mediaType string, digest string, ch cha
 		n, _ := io.ReadFull(resp.Body, buf)
 		slog.Info("goregistry.StreamReadBlob", "bytes", n)
 		writeChannel(ch, buf, n)
-		//ch <- buf
 		if n < chunkSize {
 			break
 		}
