@@ -73,7 +73,7 @@ func (registry RegistryT) StreamWriteBlob(location string, mediaType string, dig
 		slog.Info("goregistry.StreamWriteBlob", "location", newLoc)
 		newLoc, err = registry.PatchBlob(newLoc, mediaType, digest, buf[:count])
 		if err != nil {
-			slog.Error("main.StreamWriteBlob PatchBlob", "err", err)
+			slog.Error("main.StreamWriteBlob PatchBlob", "err", err, "bytes written", totalSize)
 			return "", err
 		}
 		if ! more {
@@ -120,8 +120,10 @@ func (registry RegistryT) StreamReadBlob(mediaType string, digest string, ch cha
         }
 
 	buf := make([]byte, chunkSize)
+	totalSize := 0
 	for {
 		n, _ := io.ReadFull(resp.Body, buf)
+		totalSize = totalSize + n
 		slog.Info("goregistry.StreamReadBlob", "bytes", n)
 		writeChannel(ch, buf, n)
 		if n < chunkSize {
@@ -130,6 +132,7 @@ func (registry RegistryT) StreamReadBlob(mediaType string, digest string, ch cha
 	}
 	close(ch)
 
+	slog.Info("goregistry.StreamReadBlob finished", "totalSize", totalSize)
         return nil
 }
 

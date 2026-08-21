@@ -109,12 +109,13 @@ type (
                 Tags []string `json:"tags"`
         }
 	RegistryT struct {
-                Token TokenT
-                Scheme string
-                TlsVerify bool
-                Host string
-                Image string
-		Regcred gosecret.RegCredT
+                Token                TokenT
+                Scheme               string
+                TlsVerify            bool
+                Host                 string
+		SupportChunkedUpload bool
+                Image                string
+		Regcred              gosecret.RegCredT
         }
 	ManifestT struct {
 		Digest string
