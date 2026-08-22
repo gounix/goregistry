@@ -29,17 +29,17 @@ import (
         "encoding/json"
 	"errors"
 	"fmt"
-	//"github.com/gounix/gosecret"
 	"io"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 )
 
-func (registry *RegistryT) getToken(realm string, service string, scope string) error {
+func (registry *RegistryT) getToken(realm string, service string) error {
         var dat TokenRespT
 
-        url := fmt.Sprintf(getTokenUrlPattern, realm, service, registry.Image, scope)
+        url := fmt.Sprintf(getTokenUrlPattern, realm, service, registry.Image, registry.TokenScope)
         slog.Info("goregistry.getToken", "url", url)
 
         customTransport := http.DefaultTransport.(*http.Transport).Clone()
@@ -76,8 +76,11 @@ func (registry *RegistryT) getToken(realm string, service string, scope string) 
                 return err
         }
 
-        slog.Info("goregistry.getToken", "token(truncated)", dat.Token[:10], "expires_in", dat.ExpiresIn, "issued_at", dat.IssuedAt)
+	start := dat.Token[:5]
+	end := dat.Token[len(dat.Token)-5:]
+        slog.Info("goregistry.getToken", "token(truncated)", fmt.Sprintf("%s...%s", start, end), "expires_in", dat.ExpiresIn, "issued_at", dat.IssuedAt)
 	registry.Token = dat.Token
+	registry.FullToken = dat
         return  nil
 }
 
@@ -139,7 +142,7 @@ func (registry *RegistryT) checkAuth() (string, string, error) {
         return realm, service, nil
 }
 
-func (registry *RegistryT) acquireTokenCommon(scope string) error {
+func (registry *RegistryT) acquireTokenCommon() error {
 
         realm, service, err := registry.checkAuth()
         if err != nil {
@@ -147,7 +150,7 @@ func (registry *RegistryT) acquireTokenCommon(scope string) error {
                 return err
         }
         if realm != "" && service != "" {
-		err := registry.getToken(realm, service, scope)
+		err := registry.getToken(realm, service)
 		if err != nil {
 			slog.Error("goregistry.acquireTokenCommon", "getToken", err)
 			return err
@@ -157,14 +160,26 @@ func (registry *RegistryT) acquireTokenCommon(scope string) error {
 }
 
 func (registry *RegistryT) AcquireToken() error {
-	return registry.acquireTokenCommon("pull")
+	registry.TokenScope = "pull"
+	return registry.acquireTokenCommon()
 }
 
 func (registry *RegistryT) AcquirePushToken() error {
-	return registry.acquireTokenCommon("pull,push")
+	registry.TokenScope = "pull,push"
+	return registry.acquireTokenCommon()
 }
 
 func (registry *RegistryT) AcquireDeleteToken() error {
-	return registry.acquireTokenCommon("pull,push,delete")
+	registry.TokenScope = "pull,push,delete"
+	return registry.acquireTokenCommon()
 }
 
+func (registry *RegistryT) RenewToken() error {
+	// check if token still valid
+	expire := registry.FullToken.IssuedAt.Add(time.Duration(registry.FullToken.ExpiresIn) * time.Second)
+	if expire.After(time.Now()) {
+		slog.Info("goregistry.RenewToken token still valid")
+		return nil
+	}
+	return registry.acquireTokenCommon()
+}

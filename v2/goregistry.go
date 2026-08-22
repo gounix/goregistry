@@ -49,6 +49,7 @@ func (registry RegistryT) GetLastUpdate(tag string) (time.Time, error) {
 	var mediaType string
 	var dat BlobT
 
+	registry.RenewToken()
 	retML, err := registry.GetManifestList(tag)
 	if err != nil {
 		// there is no image index manifest, try a normal manifest

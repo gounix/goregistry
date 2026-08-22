@@ -110,6 +110,8 @@ type (
         }
 	RegistryT struct {
                 Token                TokenT
+		TokenScope           string
+		FullToken            TokenRespT
                 Scheme               string
                 TlsVerify            bool
                 Host                 string

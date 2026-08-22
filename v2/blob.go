@@ -73,7 +73,7 @@ func (registry RegistryT) StreamWriteBlob(location string, mediaType string, dig
 		slog.Info("goregistry.StreamWriteBlob", "location", newLoc)
 		newLoc, err = registry.PatchBlob(newLoc, mediaType, digest, buf[:count])
 		if err != nil {
-			slog.Error("main.StreamWriteBlob PatchBlob", "err", err, "bytes written", totalSize)
+			slog.Error("goregistry.StreamWriteBlob PatchBlob", "err", err, "bytes written", totalSize)
 			return "", err
 		}
 		if ! more {
@@ -137,6 +137,7 @@ func (registry RegistryT) StreamReadBlob(mediaType string, digest string, ch cha
 }
 
 func (registry RegistryT) GetBlob(mediaType string, digest string) ([]byte, error) {
+	registry.RenewToken()
 	url := fmt.Sprintf(blobUrlPattern, registry.Scheme, registry.Host, registry.Image, digest)
         slog.Info("goregistry.GetBlob", "url", url)
 
@@ -174,6 +175,7 @@ func (registry RegistryT) GetBlob(mediaType string, digest string) ([]byte, erro
 }
 
 func (registry RegistryT) CheckBlob(mediaType string, digest string) (int, error) {
+	registry.RenewToken()
 	url := fmt.Sprintf(blobUrlPattern, registry.Scheme, registry.Host, registry.Image, digest)
         slog.Info("goregistry.GetBlob", "url", url)
 
@@ -204,6 +206,7 @@ func (registry RegistryT) CheckBlob(mediaType string, digest string) (int, error
 
 // start the blob upload, this will return the upload location
 func (registry RegistryT) PostBlob(mediaType string, digest string) (string, error) {
+	registry.RenewToken()
 	url := fmt.Sprintf(blobUrlPattern, registry.Scheme, registry.Host, registry.Image, "uploads/")
         slog.Info("goregistry.PostBlob", "url", url)
 
@@ -241,6 +244,7 @@ func (registry RegistryT) PostBlob(mediaType string, digest string) (string, err
 // do the real uploading to the location we got from POST
 func (registry RegistryT) PatchBlob(location string, mediaType string, digest string, blob []byte) (string, error) {
 
+	registry.RenewToken()
 	url := fmt.Sprintf("%s://%s%s", registry.Scheme, registry.Host, location)
 	// gitea returns location starting with /v2, docker registry uses full url
 	if strings.HasPrefix(location, "http") {
@@ -283,6 +287,7 @@ func (registry RegistryT) PatchBlob(location string, mediaType string, digest st
 // if the PATCH went wrong, abort the upload
 func (registry RegistryT) DelBlob(location string, mediaType string, digest string) error {
 
+	registry.RenewToken()
 	url := registry.createLocationUrl(location, digest)
         slog.Info("goregistry.DelBlob", "url", url)
 
@@ -336,6 +341,7 @@ func (registry RegistryT) createLocationUrl(location string, digest string) stri
 // finalize the upload after a succesful PATCH
 func (registry RegistryT) PutBlob(location string, mediaType string, digest string, blob []byte) error {
 
+	registry.RenewToken()
 	url := registry.createLocationUrl(location, digest)
         slog.Info("goregistry.PutBlob", "url", url)
 

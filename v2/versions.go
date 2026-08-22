@@ -101,6 +101,7 @@ func (registry RegistryT) GetVersions(filter string, negateFilter bool) ([]strin
 	var filtered []string
 	var err error
 
+	registry.RenewToken()
         baseUrl := fmt.Sprintf(versionBaseUrlPattern, registry.Scheme, registry.Host)
         linkUrl := fmt.Sprintf(versionLinkUrlPattern, registry.Image)
         slog.Info("goregistry.getVersions", "baseUrl", baseUrl, "linkUrl", linkUrl)

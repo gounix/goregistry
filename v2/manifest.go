@@ -81,6 +81,7 @@ func (registry *RegistryT) GetManifestList(tag string) (ManifestListT, error) {
 	var ret ManifestListT
 
 	slog.Info("goregistry.GetManifestList", "tag", tag)
+	registry.RenewToken()
 	digest, body, err := registry.getManifest(tag, acceptImageIndex)
 	if err != nil {
                 slog.Error("goregistry.GetManifestList", "err", err)
@@ -107,6 +108,7 @@ func (registry *RegistryT) GetManifest(accept string, tag string) (ManifestT, er
 	var ret ManifestT
 
 	slog.Info("goregistry.GetManifest", "accept", accept, "tag", tag)
+	registry.RenewToken()
 	digest, body, err := registry.getManifest(tag, accept)
 	if err != nil {
                 slog.Error("goregistry.GetManifest", "err", err)
@@ -123,6 +125,7 @@ func (registry *RegistryT) GetManifest(accept string, tag string) (ManifestT, er
 
 func (registry *RegistryT) PutManifest(contentType string, content []byte, tag string) error {
 
+	registry.RenewToken()
 	url := fmt.Sprintf(manifestUrlPattern, registry.Scheme, registry.Host, registry.Image, tag)
 	slog.Info("goregistry.PutManifest", "url", url)
 

@@ -65,6 +65,7 @@ func (registry RegistryT) deleteByDigest(digest string) error {
 func (registry RegistryT) DeleteImage(tag string) error {
 	var digest string
 
+	registry.RenewToken()
         retML, err := registry.GetManifestList(tag)
         if err != nil {
                 // there is no image index manifest, try a normal manifest
