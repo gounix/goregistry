@@ -78,9 +78,16 @@ func (registry *RegistryT) getToken(realm string, service string) error {
 
 	start := dat.Token[:5]
 	end := dat.Token[len(dat.Token)-5:]
-        slog.Info("goregistry.getToken", "token(truncated)", fmt.Sprintf("%s...%s", start, end), "expires_in", dat.ExpiresIn, "issued_at", dat.IssuedAt)
 	registry.Token = dat.Token
 	registry.FullToken = dat
+	if registry.FullToken.ExpiresIn == 0 {
+		//expires_in (Optional) The duration in seconds since the token was issued that it will remain valid. 
+		// When omitted, this defaults to 60 seconds. For compatibility with older clients, a token should never be returned with less than 60 seconds to live.
+		registry.FullToken.ExpiresIn = 60
+		registry.FullToken.IssuedAt = time.Now()
+	}
+
+        slog.Info("goregistry.getToken", "token(truncated)", fmt.Sprintf("%s...%s", start, end), "expires_in", registry.FullToken.ExpiresIn, "issued_at", registry.FullToken.IssuedAt)
         return  nil
 }
 
@@ -181,5 +188,6 @@ func (registry *RegistryT) RenewToken() error {
 		slog.Info("goregistry.RenewToken token still valid")
 		return nil
 	}
+	slog.Info("goregistry.RenewToken renewing token")
 	return registry.acquireTokenCommon()
 }
