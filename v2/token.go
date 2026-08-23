@@ -182,12 +182,14 @@ func (registry *RegistryT) AcquireDeleteToken() error {
 }
 
 func (registry *RegistryT) RenewToken() error {
+
 	// check if token still valid
 	expire := registry.FullToken.IssuedAt.Add(time.Duration(registry.FullToken.ExpiresIn) * time.Second)
 	if expire.After(time.Now()) {
-		slog.Info("goregistry.RenewToken token still valid")
+		slog.Info("goregistry.RenewToken token still valid", "registry", registry.Host)
 		return nil
 	}
-	slog.Info("goregistry.RenewToken renewing token")
+
+	slog.Info("goregistry.RenewToken renewing token", "registry", registry.Host)
 	return registry.acquireTokenCommon()
 }

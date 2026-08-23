@@ -63,6 +63,7 @@ func (registry RegistryT) StreamWriteBlob(location string, mediaType string, dig
 	//var more bool
 	var newLoc string
 
+	registry.RenewToken()
 	totalSize := 0
 	buf = make([]byte, chunkSize)
 	newLoc = location
@@ -88,6 +89,7 @@ func (registry RegistryT) StreamWriteBlob(location string, mediaType string, dig
 
 func (registry RegistryT) StreamReadBlob(mediaType string, digest string, ch chan byte, chunkSize int) error {
 
+	registry.RenewToken()
 	url := fmt.Sprintf(blobUrlPattern, registry.Scheme, registry.Host, registry.Image, digest)
         slog.Info("goregistry.StreamReadBlob", "url", url)
 
