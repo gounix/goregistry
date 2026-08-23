@@ -111,6 +111,7 @@ type (
 	RegistryT struct {
                 Token                TokenT
 		TokenScope           string
+		Authentication       bool
 		FullToken            TokenRespT
                 Scheme               string
                 TlsVerify            bool

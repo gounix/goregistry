@@ -119,6 +119,7 @@ func (registry *RegistryT) checkAuth() (string, string, error) {
         // first check the v2 endpoint tot see if authentication is needed
         url := fmt.Sprintf(checkAuthUrlPattern, registry.Scheme, registry.Host)
         slog.Info("goregistry.checkAuth", "url", url)
+	registry.Authentication = true
 
         customTransport := http.DefaultTransport.(*http.Transport).Clone()
 	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: ! registry.TlsVerify}
@@ -135,6 +136,7 @@ func (registry *RegistryT) checkAuth() (string, string, error) {
         defer resp.Body.Close()
         if resp.StatusCode == 200 {
                 slog.Info("goregistry.checkAuth no authentication needed", "status", resp.Status)
+		registry.Authentication = false
                 return "", "", nil // no authentication needed
         }
         if resp.StatusCode != 401 {
@@ -183,13 +185,20 @@ func (registry *RegistryT) AcquireDeleteToken() error {
 
 func (registry *RegistryT) RenewToken() error {
 
-	// check if token still valid
-	expire := registry.FullToken.IssuedAt.Add(time.Duration(registry.FullToken.ExpiresIn) * time.Second)
-	if expire.After(time.Now()) {
-		slog.Info("goregistry.RenewToken token still valid", "registry", registry.Host)
+	// does this registry use authentication
+	if ! registry.Authentication {
+		slog.Info("goregistry.RenewToken no authentication", "registry", registry.Host)
 		return nil
 	}
 
-	slog.Info("goregistry.RenewToken renewing token", "registry", registry.Host)
+	// check if token still valid
+	expire := registry.FullToken.IssuedAt.Add(time.Duration(registry.FullToken.ExpiresIn) * time.Second)
+	if expire.After(time.Now()) {
+		slog.Info("goregistry.RenewToken token still valid", "registry", registry.Host, "issued", registry.FullToken.IssuedAt, "expires", expire)
+		return nil
+	}
+
+	// renew token
+	slog.Info("goregistry.RenewToken renewing token", "registry", registry.Host, "issued", registry.FullToken.IssuedAt, "expires", expire)
 	return registry.acquireTokenCommon()
 }
