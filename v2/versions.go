@@ -64,7 +64,7 @@ func fetchPage(tlsVerify bool, url string, token string, accept string, dat any)
         }
 
         if token != "" {
-                req.Header.Add("Authorization", "Bearer "+token)
+                req.Header.Add("Authorization", "Bearer " + token)
         }
 
 	slog.Info("goregistry.fetchPage", "url", url)
@@ -78,6 +78,7 @@ func fetchPage(tlsVerify bool, url string, token string, accept string, dat any)
         if resp.StatusCode != 200 {
                 slog.Error("goregistry.fetchPage", "status", resp.Status)
                 //str := fmt.Sprintf("status code %d", resp.StatusCode)
+		errorMessage(resp)
                 return "", errors.New(resp.Status)
         }
 

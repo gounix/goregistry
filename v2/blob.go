@@ -33,6 +33,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func readChannel(ch chan byte, buf []byte, chunkSize int) (int, bool) {
@@ -118,6 +119,7 @@ func (registry RegistryT) StreamReadBlob(mediaType string, digest string, ch cha
                 slog.Error("goregistry.StreamReadBlob", "status", resp.Status)
 		// signal stream reader we are finished
 		close(ch)
+		errorMessage(resp)
                 return errors.New(resp.Status)
         }
 
@@ -138,7 +140,9 @@ func (registry RegistryT) StreamReadBlob(mediaType string, digest string, ch cha
         return nil
 }
 
-func (registry RegistryT) GetBlob(mediaType string, digest string) ([]byte, error) {
+func (registry RegistryT) GetBlob(mediaType string, digest string) (BlobT, error) {
+	var blob BlobT
+
 	registry.RenewToken()
 	url := fmt.Sprintf(blobUrlPattern, registry.Scheme, registry.Host, registry.Image, digest)
         slog.Info("goregistry.GetBlob", "url", url)
@@ -159,21 +163,35 @@ func (registry RegistryT) GetBlob(mediaType string, digest string) ([]byte, erro
 	resp, err := client.Do(req)
         if err != nil {
                 slog.Error("goregistry.GetBlob", "client.do error", err)
-                return []byte{}, err
+                return BlobT{}, err
         }
 
         defer resp.Body.Close()
         if resp.StatusCode != 200 {
                 slog.Error("goregistry.GetBlob", "status", resp.Status)
-                return []byte{}, errors.New(resp.Status)
+		errorMessage(resp)
+                return BlobT{}, errors.New(resp.Status)
         }
         body, err := io.ReadAll(resp.Body)
         if err != nil {
                 slog.Error("goregistry.GetBlob", "io.ReadAll error", err)
-                return []byte{}, err
+                return BlobT{}, err
         }
 
-        return body, nil
+	blob.Raw = body
+
+	mtimeStr := resp.Header.Get("Last-Modified")
+	slog.Info("goregistry.GetBlob", "Last-Modified", mtimeStr)
+
+	// example of time format: "Mon, 18 Aug 2025 14:11:42 GMT"
+	mtime, err := time.Parse("Mon, 2 Jan 2006 15:04:05 MST", mtimeStr)
+	if err != nil {
+                slog.Warn("goregistry.GetBlob cannot parse time", "mtimeStr", mtimeStr)
+		blob.LastModified = time.Time{}
+                return blob, nil
+        }
+	blob.LastModified = mtime
+        return blob, nil
 }
 
 func (registry RegistryT) CheckBlob(mediaType string, digest string) (int, error) {
@@ -236,6 +254,7 @@ func (registry RegistryT) PostBlob(mediaType string, digest string) (string, err
         defer resp.Body.Close()
         if resp.StatusCode != 202 { // accepted
                 slog.Error("goregistry.PostBlob", "status", resp.Status)
+		errorMessage(resp)
                 return "", errors.New(resp.Status)
         }
 
@@ -276,6 +295,7 @@ func (registry RegistryT) PatchBlob(location string, mediaType string, digest st
         defer resp.Body.Close()
         if resp.StatusCode != 202 { // chunk accepted and stored
                 slog.Error("goregistry.PatchBlob", "status", resp.Status)
+		errorMessage(resp)
                 return "", errors.New(resp.Status)
         }
 
@@ -315,6 +335,7 @@ func (registry RegistryT) DelBlob(location string, mediaType string, digest stri
         defer resp.Body.Close()
         if resp.StatusCode != 204 { // upload succesfully cancelled
                 slog.Error("goregistry.DelBlob", "status", resp.Status)
+		errorMessage(resp)
                 return errors.New(resp.Status)
         }
 
@@ -369,6 +390,7 @@ func (registry RegistryT) PutBlob(location string, mediaType string, digest stri
         defer resp.Body.Close()
         if resp.StatusCode != 201 {
                 slog.Error("goregistry.PutBlob", "status", resp.Status)
+		errorMessage(resp)
                 return errors.New(resp.Status)
         }
 

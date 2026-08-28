@@ -32,10 +32,12 @@ import (
 const (
 	checkAuthUrlPattern       = "%s://%s/v2/"
 	getTokenUrlPattern        = "%s?service=%s&scope=repository:%s:%s"
+	getCatalogTokenUrlPattern = "%s?service=%s&scope=registry:catalog:*"
 	manifestUrlPattern        = "%s://%s/v2/%s/manifests/%s"
 	blobUrlPattern            = "%s://%s/v2/%s/blobs/%s"
 	versionBaseUrlPattern     = "%s://%s"
 	versionLinkUrlPattern     = "/v2/%s/tags/list"
+	catalogBaseUrlPattern     = "%s://%s"
 	deleteUrlPattern          = "%s://%s/v2/%s/manifests/%s"
 
 	acceptDockerImageIndex    = "application/vnd.docker.distribution.manifest.list.v2+json"
@@ -84,11 +86,13 @@ type (
 		MediaType     string          `json:"mediaType"`
 		Manifest      []ArchManifestT `json:"manifests"`
 	}
+	// the config section in a manifest
 	ConfigT struct {
 		MediaType string `json:"mediaType"`
 		Digest    string `json:"digest"`
 		Size      int64  `json:"size"`
 	}
+	// a single layer in a manifest
 	LayerT struct {
 		MediaType string `json:"mediaType"`
 		Digest    string `json:"digest"`
@@ -101,12 +105,16 @@ type (
 		Layers        []LayerT     `json:"layers"`
 		Annotations   AnnotationsT `json:"annotations"`
 	}
-	BlobT struct {
+	// the structure of the config blob that is referenced in a manifest
+	ConfigBlobT struct {
 		Created time.Time `json:"created"`
 	}
 	TagsT struct {
                 Name string   `json:"name"`
                 Tags []string `json:"tags"`
+        }
+	CatalogT struct {
+                Repositories []string `json:"repositories"`
         }
 	RegistryT struct {
                 Token                TokenT
@@ -120,6 +128,10 @@ type (
                 Image                string
 		Regcred              gosecret.RegCredT
         }
+	BlobT struct {
+		Raw          []byte 
+		LastModified time.Time
+	}
 	ManifestT struct {
 		Digest string
 		Raw    []byte 
@@ -129,6 +141,15 @@ type (
 		Digest string
 		Raw    []byte 
 		Json   JsonManifestListT
+	}
+	// error response given with http 4XX errors
+	HttpError struct {
+		Code string `json:"code"`
+		Message string `json:"message"`
+		Detail string `json:"detail"`
+	}
+	HttpErrorList struct {
+		Error []HttpError `json:"errors"`
 	}
 )
 

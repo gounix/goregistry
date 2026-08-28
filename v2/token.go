@@ -39,7 +39,16 @@ import (
 func (registry *RegistryT) getToken(realm string, service string) error {
         var dat TokenRespT
 
-        url := fmt.Sprintf(getTokenUrlPattern, realm, service, registry.Image, registry.TokenScope)
+	url := ""
+	if registry.TokenScope == "catalog" {
+		url = fmt.Sprintf(getCatalogTokenUrlPattern, realm, service)
+	} else {
+		url = fmt.Sprintf(getTokenUrlPattern, realm, service, registry.Image, registry.TokenScope)
+	}
+        //if registry.Regcred.User != "" {
+		//url = fmt.Sprintf("%s&account=%s", url, registry.Regcred.User)
+	//}
+
         slog.Info("goregistry.getToken", "url", url)
 
         customTransport := http.DefaultTransport.(*http.Transport).Clone()
@@ -61,6 +70,7 @@ func (registry *RegistryT) getToken(realm string, service string) error {
         defer resp.Body.Close()
         if resp.StatusCode != 200 {
                 slog.Info("goregistry.getToken", "status", resp.Status)
+		errorMessage(resp)
                 return errors.New(resp.Status)
         }
 
@@ -142,11 +152,14 @@ func (registry *RegistryT) checkAuth() (string, string, error) {
         if resp.StatusCode != 401 {
                 // something else
                 slog.Error("goregistry.checkAuth", "status", resp.Status)
+		errorMessage(resp)
                 return "", "", errors.New(resp.Status)
         }
+	errorMessage(resp)
         // error 401, authentication needed
         // https://datatracker.ietf.org/doc/html/rfc6750#section-3
         authHeader := resp.Header.Get("www-authenticate")
+	slog.Info("goregistry.checkAuth", "www-authenticate", authHeader)
         realm, service := getRealmService(authHeader)
         return realm, service, nil
 }
@@ -166,6 +179,11 @@ func (registry *RegistryT) acquireTokenCommon() error {
 		}
         }
         return nil
+}
+
+func (registry *RegistryT) AcquireCatalogToken() error {
+	registry.TokenScope = "catalog"
+	return registry.acquireTokenCommon()
 }
 
 func (registry *RegistryT) AcquireToken() error {

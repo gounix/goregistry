@@ -27,9 +27,32 @@ package goregistry
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
+	"net/http"
 	"time"
 )
+
+func errorMessage(resp *http.Response) (string, error) {
+        var dat HttpErrorList
+
+        // 4XX errors have a body with an error message
+        if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+                body, err := io.ReadAll(resp.Body)
+                if err != nil {
+                        slog.Error("goregistry.errorMessage", "io.ReadAll error", err)
+                        return "", err
+                }
+                err = json.Unmarshal(body, &dat)
+                for _, entry := range dat.Error {
+                        slog.Error("goregistry.errorMessage", "code", entry.Code, "message", entry.Message, "detail", entry.Detail)
+                        return entry.Message, nil
+                }
+                return "", nil
+        } else {
+                return "", errors.New("no error message for this status code")
+        }
+}
 
 // assuming that all architectures were built at the same time, so pick the first architecture that is not "unknown"
 func getArchDigest(manifest JsonManifestListT) (string, string, error) {
@@ -47,7 +70,7 @@ func getArchDigest(manifest JsonManifestListT) (string, string, error) {
 func (registry RegistryT) GetLastUpdate(tag string) (time.Time, error) {
 	var digest string
 	var mediaType string
-	var dat BlobT
+	var dat ConfigBlobT
 
 	registry.RenewToken()
 	retML, err := registry.GetManifestList(tag)
@@ -77,7 +100,11 @@ func (registry RegistryT) GetLastUpdate(tag string) (time.Time, error) {
 		return time.Time{}, err
 	}
 
-	json.Unmarshal(blob, &dat)
-	slog.Info("goregistry.GetLastUpdate", "date", dat.Created)
-	return dat.Created, nil
+	json.Unmarshal(blob.Raw, &dat)
+	timestamp := dat.Created
+	if timestamp.IsZero() {
+		timestamp = blob.LastModified
+	}
+	slog.Info("goregistry.GetLastUpdate", "date", timestamp)
+	return timestamp, nil
 }
