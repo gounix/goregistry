@@ -104,10 +104,18 @@ func (registry *RegistryT) getToken(realm string, service string) error {
 func getValueFromString(str string, substr string) string {
 
         startPos := strings.Index(str, substr)
+	if startPos < 0 {
+		slog.Error("getValueFromString", "str", str, "substr", substr, "startPos", startPos)
+		return ""
+	}
 
         // including starting quote
         subStartPos := startPos + len(substr) + 1
         endPos := strings.Index(str[subStartPos:], "\"")
+	if endPos < 0 {
+		slog.Error("getValueFromString", "str", str[subStartPos:], "substr", substr, "endPos", endPos)
+		return ""
+	}
         endPos += subStartPos
 
         found := str[subStartPos:endPos]
