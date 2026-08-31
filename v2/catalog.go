@@ -31,7 +31,7 @@ import (
 )
 
 // the catalog api is 
-//  - available in docker v2 registries
+//  - available in docker v2 registries (cncf, gitea, except harbor)
 //  - disabled or not yet implemented by registry-1.docker.io, quay.io, ghcr.io and gcr.io
 func (registry RegistryT) GetCatalog(filter string, negateFilter bool) ([]string, error) {
 	var filtered []string
@@ -50,7 +50,7 @@ func (registry RegistryT) GetCatalog(filter string, negateFilter bool) ([]string
 		linkUrl, err = fetchPage(registry.TlsVerify, url, string(registry.Token), "", &dat)
 		if err != nil {
 			slog.Error("goregistry.GetCatalog", "err", err)
-			break
+			return []string{}, err
 		}
 		slog.Info("goregistry.GetCatalog", "baseUrl", baseUrl, "linkUrl", linkUrl)
 

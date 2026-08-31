@@ -114,7 +114,7 @@ func (registry RegistryT) GetVersions(filter string, negateFilter bool) ([]strin
 		linkUrl, err = fetchPage(registry.TlsVerify, url, string(registry.Token), "", &dat)
 		if err != nil {
 			slog.Error("goregistry.getVersions", "err", err)
-			break
+			return []string{}, err
 		}
 		slog.Info("goregistry.getVersions", "baseUrl", baseUrl, "linkUrl", linkUrl)
 
