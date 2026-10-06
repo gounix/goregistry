@@ -129,6 +129,7 @@ type (
 		Regcred              gosecret.RegCredT
         }
 	BlobT struct {
+		Digest       string
 		Raw          []byte 
 		LastModified time.Time
 	}

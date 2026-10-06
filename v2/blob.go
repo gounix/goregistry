@@ -179,6 +179,7 @@ func (registry RegistryT) GetBlob(mediaType string, digest string) (BlobT, error
         }
 
 	blob.Raw = body
+	blob.Digest = digest
 
 	mtimeStr := resp.Header.Get("Last-Modified")
 	slog.Info("goregistry.GetBlob", "Last-Modified", mtimeStr)

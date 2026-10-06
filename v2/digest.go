@@ -40,16 +40,36 @@ func (manifestList *ManifestListT) ComputeDigest() {
 	manifestList.Digest = fmt.Sprintf("sha256:%x", sum)
 }
 
+func (blob *BlobT) ComputeDigest() {
+	sum := sha256.Sum256(blob.Raw)
+	blob.Digest = fmt.Sprintf("sha256:%x", sum)
+}
+
+func logCheck(stored string, computed string) {
+	if stored == computed {
+		slog.Info("goregistry.CheckDigest", "stored", stored, "computed", computed)
+	} else {
+		slog.Error("goregistry.CheckDigest", "stored", stored, "computed", computed)
+	}
+}
+
 func (manifest *ManifestT) CheckDigest() bool {
 	sum := sha256.Sum256(manifest.Raw)
 	sumStr := fmt.Sprintf("sha256:%x", sum)
-	slog.Info("goregistry.CheckDigest", "stored", manifest.Digest, "computed", sumStr)
+	logCheck(manifest.Digest, sumStr)
 	return manifest.Digest == sumStr
 }
 
 func (manifestList *ManifestListT) CheckDigest() bool {
 	sum := sha256.Sum256(manifestList.Raw)
 	sumStr := fmt.Sprintf("sha256:%x", sum)
-	slog.Info("goregistry.CheckDigest", "stored", manifestList.Digest, "computed", sumStr)
+	logCheck(manifestList.Digest, sumStr)
 	return manifestList.Digest == sumStr
+}
+
+func (blob *BlobT) CheckDigest() bool {
+	sum := sha256.Sum256(blob.Raw)
+	sumStr := fmt.Sprintf("sha256:%x", sum)
+	logCheck(blob.Digest, sumStr)
+	return blob.Digest == sumStr
 }
